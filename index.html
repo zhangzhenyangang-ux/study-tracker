@@ -1,0 +1,752 @@
+<!DOCTYPE html>
+<html lang="ja">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<meta name="theme-color" content="#fffaf0">
+<title>Study Tracker</title>
+
+<style>
+:root {
+  --bg: #fffaf2;
+  --white: #ffffff;
+  --yellow: #f5df96;
+  --yellow2: #f8eab9;
+  --gold: #c39a40;
+  --text: #514b3e;
+  --muted: #968d7b;
+  --line: #eee5d5;
+  --card: #fff;
+  --shadow: 0 4px 18px rgba(120,100,55,.06);
+}
+* { box-sizing:border-box; }
+body {
+  margin:0;
+  background:var(--bg);
+  color:var(--text);
+  font-family:system-ui,-apple-system,"Segoe UI",sans-serif;
+}
+button,input,select,textarea { font:inherit; }
+button { cursor:pointer; }
+.app { max-width:850px; margin:auto; padding:18px 16px 100px; }
+header { display:flex; justify-content:space-between; align-items:center; }
+.logo { font-size:22px; font-weight:800; }
+.logo span { color:var(--gold); }
+.date { color:var(--muted); font-size:13px; margin-top:5px; }
+.panel {
+  background:var(--card); border:1px solid var(--line);
+  border-radius:20px; padding:17px; margin:15px 0;
+  box-shadow:var(--shadow);
+}
+.hero {
+  background:linear-gradient(135deg,#f8e9b6,#fff4d7);
+  border:0; padding:21px;
+}
+h1 { font-size:23px; margin:8px 0; }
+h2 { font-size:18px; margin:0 0 13px; }
+h3 { font-size:15px; margin:0 0 8px; }
+p { line-height:1.65; }
+.muted { color:var(--muted); font-size:13px; }
+.big { font-size:28px; font-weight:800; }
+.grid { display:grid; grid-template-columns:repeat(2,1fr); gap:11px; }
+.stat { background:#fff; border:1px solid var(--line); padding:14px; border-radius:16px; }
+.stat .number { font-size:23px; font-weight:800; margin-top:6px; }
+.btn {
+  background:var(--yellow); border:0; padding:11px 15px;
+  border-radius:12px; color:#53482d; font-weight:700;
+}
+.btn.secondary {
+  background:#fff; border:1px solid var(--line); color:var(--text);
+}
+.btn.small { padding:7px 10px; font-size:13px; }
+.btn.danger { color:#a34f40; background:#fff0eb; }
+.btn.full { width:100%; }
+input,select,textarea {
+  width:100%; background:#fff; border:1px solid var(--line);
+  padding:11px; border-radius:11px; color:var(--text);
+  margin:5px 0 10px; outline:none;
+}
+textarea { min-height:85px; resize:vertical; }
+label { font-size:13px; font-weight:650; }
+.row { display:flex; gap:9px; align-items:center; flex-wrap:wrap; }
+.row > * { flex:1; }
+.task,.subject,.record,.note,.flash,.slot {
+  border:1px solid var(--line); border-radius:14px;
+  padding:12px; margin:8px 0; background:#fff;
+}
+.task.done { opacity:.6; }
+.task.done .taskname { text-decoration:line-through; }
+.taskname { font-weight:650; }
+.tag { display:inline-block; background:#fff3d4; border-radius:20px;
+  padding:4px 9px; font-size:12px; color:#88703a; margin:3px; }
+.tabs {
+  display:flex; gap:8px; overflow:auto; padding:9px 0 15px;
+  scrollbar-width:none;
+}
+.tabs button { white-space:nowrap; }
+.nav {
+  position:fixed; bottom:0; left:0; right:0;
+  background:rgba(255,250,242,.96); border-top:1px solid var(--line);
+  display:flex; justify-content:center; gap:2px; padding:8px 4px;
+  z-index:5; backdrop-filter:blur(10px);
+}
+.nav button {
+  border:0; background:transparent; color:var(--muted);
+  padding:8px 7px; border-radius:12px; font-size:11px;
+}
+.nav button.active { background:var(--yellow2); color:var(--text); font-weight:800; }
+.nav .ico { display:block; font-size:18px; margin-bottom:2px; }
+.view { display:none; }
+.view.active { display:block; }
+.bar { height:9px; background:#f2eee5; border-radius:20px; overflow:hidden; }
+.bar > div { height:100%; background:var(--yellow); border-radius:20px; }
+hr { border:0; border-top:1px solid var(--line); margin:13px 0; }
+.hidden { display:none; }
+.subjectlist { display:flex; flex-wrap:wrap; gap:7px; }
+.subjectchip { background:#fff3d4; padding:8px 12px; border-radius:30px; font-size:13px; }
+.empty { text-align:center; padding:20px; color:var(--muted); font-size:13px; }
+.timer { text-align:center; padding:20px 0; }
+.timerdisplay { font-size:48px; font-weight:800; letter-spacing:2px; }
+table { width:100%; border-collapse:collapse; font-size:13px; }
+td,th { padding:8px 4px; border-bottom:1px solid var(--line); text-align:left; }
+.smalltext { font-size:12px; color:var(--muted); }
+@media(min-width:600px) {
+  .app { padding-top:28px; }
+  .grid { grid-template-columns:repeat(3,1fr); }
+  .nav button { font-size:13px; padding:9px 17px; }
+}
+</style>
+</head>
+
+<body>
+<div class="app">
+<header>
+  <div>
+    <div class="logo">Study <span>Tracker</span></div>
+    <div class="date" id="todayDate"></div>
+  </div>
+  <button class="btn secondary small" onclick="showView('settings')">⚙ 設定</button>
+</header>
+
+<div class="tabs" id="quickTabs">
+  <button class="btn small" onclick="showView('home')">ホーム</button>
+  <button class="btn secondary small" onclick="showView('tasks')">勉強タスク</button>
+  <button class="btn secondary small" onclick="showView('grades')">成績</button>
+</div>
+
+<!-- HOME -->
+<section class="view active" id="home">
+  <div class="panel hero">
+    <div class="muted">今日も少しずつ進めよう</div>
+    <h1>今日の勉強</h1>
+    <div class="big" id="todayMinutes">0分</div>
+    <div class="muted">今日の勉強時間</div>
+    <div class="bar" style="margin-top:13px"><div id="todayBar" style="width:0%"></div></div>
+  </div>
+
+  <div class="grid">
+    <div class="stat"><div class="muted">今日のタスク</div><div class="number" id="taskStat">0/0</div></div>
+    <div class="stat"><div class="muted">登録教科数</div><div class="number" id="subjectStat">0</div></div>
+    <div class="stat"><div class="muted">復習予定</div><div class="number" id="reviewStat">0件</div></div>
+  </div>
+
+  <div class="panel">
+    <h2>今日の学習プラン</h2>
+    <p class="muted">登録したタスクと復習予定を表示するよ。</p>
+    <div id="homeTasks"></div>
+    <button class="btn full" onclick="showView('tasks')">勉強内容を管理する</button>
+  </div>
+
+  <div class="panel">
+    <h2>クイックアクセス</h2>
+    <div class="grid">
+      <button class="btn secondary" onclick="showView('notes')">📒 間違いノート</button>
+      <button class="btn secondary" onclick="showView('flash')">🗂 暗記カード</button>
+      <button class="btn secondary" onclick="showView('timer')">⏱ 集中モード</button>
+      <button class="btn secondary" onclick="showView('prediction')">🔮 テスト予測</button>
+      <button class="btn secondary" onclick="showView('timetable')">🗓 時間割</button>
+      <button class="btn secondary" onclick="showView('grades')">📊 成績を見る</button>
+    </div>
+  </div>
+</section>
+
+<!-- TASKS -->
+<section class="view" id="tasks">
+  <div class="panel">
+    <h2>勉強タスク</h2>
+    <label>教科</label><select id="taskSubject"></select>
+    <label>勉強内容</label><input id="taskName" placeholder="例：教科書P20〜25">
+    <div class="row">
+      <div><label>日付</label><input type="date" id="taskDate"></div>
+      <div><label>予定時間（分）</label><input type="number" id="taskDuration" value="30" min="1"></div>
+    </div>
+    <button class="btn full" onclick="addTask()">＋ タスクを追加</button>
+  </div>
+  <div class="panel">
+    <h2>タスク一覧</h2>
+    <div id="taskList"></div>
+  </div>
+</section>
+
+<!-- GRADES -->
+<section class="view" id="grades">
+  <div class="panel">
+    <h2>テスト成績を登録</h2>
+    <label>テスト名</label><input id="examName" placeholder="例：2学期期末テスト">
+    <label>教科</label><select id="gradeSubject"></select>
+    <div class="row">
+      <div><label>点数</label><input type="number" id="score" min="0" placeholder="80"></div>
+      <div><label>満点</label><input type="number" id="maxScore" min="1" value="100"></div>
+    </div>
+    <label>テスト日</label><input type="date" id="examDate">
+    <label>範囲・反省・苦手内容</label><textarea id="gradeMemo" placeholder="間違えた分野、感想など"></textarea>
+    <button class="btn full" onclick="addGrade()">成績を保存</button>
+  </div>
+  <div class="panel">
+    <h2>教科別成績</h2>
+    <div id="gradeSummary"></div>
+  </div>
+  <div class="panel">
+    <h2>テスト履歴</h2>
+    <div id="gradeList"></div>
+  </div>
+</section>
+
+<!-- NOTES -->
+<section class="view" id="notes">
+  <div class="panel">
+    <h2>間違いノート</h2>
+    <label>教科</label><select id="noteSubject"></select>
+    <label>問題・間違えた内容</label><textarea id="noteQuestion"></textarea>
+    <label>正しい考え方・解説</label><textarea id="noteAnswer"></textarea>
+    <button class="btn full" onclick="addNote()">間違いを保存</button>
+  </div>
+  <div class="panel">
+    <h2>保存した間違い</h2>
+    <div id="noteList"></div>
+  </div>
+</section>
+
+<!-- FLASHCARDS -->
+<section class="view" id="flash">
+  <div class="panel">
+    <h2>暗記カード</h2>
+    <label>教科</label><select id="flashSubject"></select>
+    <label>問題・用語</label><input id="flashQ" placeholder="表側">
+    <label>答え</label><textarea id="flashA" placeholder="裏側"></textarea>
+    <button class="btn full" onclick="addFlash()">カードを追加</button>
+  </div>
+  <div class="panel">
+    <h2>カード一覧</h2>
+    <div id="flashList"></div>
+  </div>
+</section>
+
+<!-- TIMER -->
+<section class="view" id="timer">
+  <div class="panel timer">
+    <h2>集中モード</h2>
+    <label>勉強する教科</label><select id="timerSubject"></select>
+    <div class="timerdisplay" id="timerDisplay">25:00</div>
+    <div class="muted">集中して取り組もう</div>
+    <div class="row" style="margin-top:15px">
+      <button class="btn" id="timerStart" onclick="startTimer()">スタート</button>
+      <button class="btn secondary" onclick="pauseTimer()">一時停止</button>
+      <button class="btn secondary" onclick="resetTimer()">リセット</button>
+    </div>
+    <hr>
+    <label>時間（分）</label>
+    <input type="number" id="timerMinutes" value="25" min="1" max="240" onchange="resetTimer()">
+  </div>
+</section>
+
+<!-- PREDICTION -->
+<section class="view" id="prediction">
+  <div class="panel">
+    <h2>次回テスト予測</h2>
+    <p class="muted">過去の成績やテスト範囲を登録して、予測に使う情報を管理する場所だよ。</p>
+    <label>教科</label><select id="predSubject"></select>
+    <label>次のテスト名</label><input id="predName" placeholder="例：3学期期末">
+    <label>テスト範囲</label><textarea id="predRange" placeholder="テスト範囲を入力"></textarea>
+    <label>過去の出題傾向・分析メモ</label><textarea id="predMemo" placeholder="よく出る分野、形式など"></textarea>
+    <button class="btn full" onclick="savePrediction()">予測情報を保存</button>
+  </div>
+  <div class="panel">
+    <h2>保存した予測情報</h2>
+    <div id="predList"></div>
+  </div>
+  <div class="panel">
+    <h3>AI予測機能について</h3>
+    <p class="muted">この第1版ではAIによる出題予測はまだ接続されていないよ。ここに保存した範囲・過去の成績・出題メモは、後からAI予測機能を実装するときに利用する設計だよ。</p>
+  </div>
+</section>
+
+<!-- TIMETABLE -->
+<section class="view" id="timetable">
+  <div class="panel">
+    <h2>学校の時間割</h2>
+    <label>曜日</label>
+    <select id="ttDay">
+      <option>月曜日</option><option>火曜日</option><option>水曜日</option>
+      <option>木曜日</option><option>金曜日</option><option>土曜日</option><option>日曜日</option>
+    </select>
+    <label>時間（例：1限）</label><input id="ttPeriod" placeholder="1限">
+    <label>教科</label><select id="ttSubject"></select>
+    <button class="btn full" onclick="addSlot()">時間割に追加</button>
+  </div>
+  <div class="panel">
+    <h2>登録した時間割</h2>
+    <div id="slotList"></div>
+  </div>
+</section>
+
+<!-- SETTINGS -->
+<section class="view" id="settings">
+  <div class="panel">
+    <h2>教科の管理</h2>
+    <label>新しい教科名</label><input id="newSubject" placeholder="教科名">
+    <button class="btn full" onclick="addSubject()">＋ 教科を追加</button>
+    <div id="subjectList" style="margin-top:12px"></div>
+  </div>
+  <div class="panel">
+    <h2>データのバックアップ</h2>
+    <p class="muted">学習記録をファイルに保存して、機種変更や復元に備えよう。</p>
+    <button class="btn full" onclick="exportData()">バックアップをダウンロード</button>
+    <hr>
+    <label>バックアップファイルを復元</label>
+    <input type="file" id="restoreFile" accept=".json,application/json">
+    <button class="btn secondary full" onclick="importData()">バックアップを復元</button>
+  </div>
+  <div class="panel">
+    <h2>保存について</h2>
+    <p class="muted">この版ではデータは現在のブラウザ内に保存される。GitHubにコードを公開しても、データがクラウドに同期されるわけではないよ。定期的にバックアップをダウンロードしてね。</p>
+  </div>
+</section>
+
+</div>
+
+<nav class="nav">
+  <button class="active" onclick="showView('home',this)"><span class="ico">⌂</span>ホーム</button>
+  <button onclick="showView('tasks',this)"><span class="ico">✓</span>勉強</button>
+  <button onclick="showView('grades',this)"><span class="ico">▤</span>成績</button>
+  <button onclick="showView('notes',this)"><span class="ico">✎</span>ノート</button>
+  <button onclick="showView('flash',this)"><span class="ico">▣</span>暗記</button>
+  <button onclick="showView('settings',this)"><span class="ico">⚙</span>設定</button>
+</nav>
+
+<script>
+const KEY = "study_tracker_v1";
+
+const defaultData = {
+  subjects:["数学","英語","国語","理科","社会"],
+  tasks:[],
+  grades:[],
+  notes:[],
+  flashcards:[],
+  predictions:[],
+  timetable:[],
+  sessions:[]
+};
+
+let data = loadData();
+
+function loadData() {
+  try {
+    const saved = JSON.parse(localStorage.getItem(KEY));
+    return saved ? {...defaultData,...saved} : structuredClone(defaultData);
+  } catch {
+    return structuredClone(defaultData);
+  }
+}
+function save() {
+  localStorage.setItem(KEY,JSON.stringify(data));
+  render();
+}
+function uid() { return Date.now().toString(36)+Math.random().toString(36).slice(2,7); }
+function esc(s) {
+  return String(s??"").replace(/[&<>"']/g,c=>({
+    "&":"&amp;","<":"&lt;",">":"&gt;",'"':"&quot;","'":"&#39;"
+  }[c]));
+}
+function today() {
+  return new Date().toLocaleDateString("sv-SE");
+}
+document.getElementById("todayDate").textContent =
+  new Date().toLocaleDateString("ja-JP",{year:"numeric",month:"long",day:"numeric",weekday:"long"});
+document.getElementById("taskDate").value=today();
+document.getElementById("examDate").value=today();
+
+function showView(id,button) {
+  document.querySelectorAll(".view").forEach(v=>v.classList.remove("active"));
+  const el=document.getElementById(id);
+  if(el) el.classList.add("active");
+  document.querySelectorAll(".nav button").forEach(b=>b.classList.remove("active"));
+  if(button && button.closest(".nav")) button.classList.add("active");
+  else {
+    const map={home:0,tasks:1,grades:2,notes:3,flash:4,settings:5};
+    const nav=document.querySelectorAll(".nav button");
+    if(map[id]!=null) nav[map[id]].classList.add("active");
+  }
+  window.scrollTo(0,0);
+}
+
+function subjectOptions(id) {
+  const el=document.getElementById(id);
+  if(!el) return;
+  const old=el.value;
+  el.innerHTML=data.subjects.map(s=>`<option>${esc(s)}</option>`).join("");
+  if(data.subjects.includes(old)) el.value=old;
+}
+
+function addSubject() {
+  const name=document.getElementById("newSubject").value.trim();
+  if(!name) return alert("教科名を入力してね");
+  if(data.subjects.includes(name)) return alert("その教科はすでに登録されているよ");
+  data.subjects.push(name);
+  document.getElementById("newSubject").value="";
+  save();
+}
+
+function renameSubject(oldName) {
+  const name=prompt("新しい教科名",oldName);
+  if(!name || !name.trim() || name===oldName) return;
+  const n=name.trim();
+  if(data.subjects.includes(n)) return alert("同じ名前の教科があるよ");
+  data.subjects=data.subjects.map(s=>s===oldName?n:s);
+  ["tasks","grades","notes","flashcards","predictions","timetable","sessions"].forEach(k=>{
+    data[k].forEach(item=>{
+      if(item.subject===oldName)item.subject=n;
+    });
+  });
+  save();
+}
+function deleteSubject(s) {
+  if(!confirm(`「${s}」を教科一覧から削除する？\n過去の記録は残るよ。`)) return;
+  data.subjects=data.subjects.filter(x=>x!==s);
+  save();
+}
+
+function addTask() {
+  const subject=document.getElementById("taskSubject").value;
+  const name=document.getElementById("taskName").value.trim();
+  if(!name) return alert("勉強内容を入力してね");
+  data.tasks.push({
+    id:uid(),subject,name,
+    date:document.getElementById("taskDate").value,
+    duration:Number(document.getElementById("taskDuration").value)||30,
+    done:false
+  });
+  document.getElementById("taskName").value="";
+  save();
+}
+function toggleTask(id) {
+  const t=data.tasks.find(x=>x.id===id);
+  if(!t)return;
+  t.done=!t.done;
+  if(t.done) t.completedAt=new Date().toISOString();
+  else t.completedAt=null;
+  save();
+}
+function deleteTask(id) {
+  if(confirm("このタスクを削除する？")) {
+    data.tasks=data.tasks.filter(t=>t.id!==id);save();
+  }
+}
+
+function addGrade() {
+  const name=document.getElementById("examName").value.trim();
+  const subject=document.getElementById("gradeSubject").value;
+  const score=Number(document.getElementById("score").value);
+  const max=Number(document.getElementById("maxScore").value);
+  if(!name || !Number.isFinite(score) || max<=0 || score<0 || score>max)
+    return alert("テスト名と正しい点数・満点を入力してね");
+  data.grades.push({
+    id:uid(),name,subject,score,max,
+    date:document.getElementById("examDate").value,
+    memo:document.getElementById("gradeMemo").value
+  });
+  document.getElementById("examName").value="";
+  document.getElementById("score").value="";
+  document.getElementById("gradeMemo").value="";
+  save();
+}
+function deleteGrade(id) {
+  if(confirm("この成績記録を削除する？")) {
+    data.grades=data.grades.filter(g=>g.id!==id);save();
+  }
+}
+
+function addNote() {
+  const subject=document.getElementById("noteSubject").value;
+  const question=document.getElementById("noteQuestion").value.trim();
+  const answer=document.getElementById("noteAnswer").value.trim();
+  if(!question) return alert("間違えた問題や内容を入力してね");
+  data.notes.push({id:uid(),subject,question,answer,date:today()});
+  document.getElementById("noteQuestion").value="";
+  document.getElementById("noteAnswer").value="";
+  save();
+}
+function deleteNote(id) {
+  if(confirm("このノートを削除する？")) {
+    data.notes=data.notes.filter(n=>n.id!==id);save();
+  }
+}
+
+function addFlash() {
+  const subject=document.getElementById("flashSubject").value;
+  const q=document.getElementById("flashQ").value.trim();
+  const a=document.getElementById("flashA").value.trim();
+  if(!q || !a) return alert("問題と答えを両方入力してね");
+  data.flashcards.push({id:uid(),subject,q,a,date:today()});
+  document.getElementById("flashQ").value="";
+  document.getElementById("flashA").value="";
+  save();
+}
+function deleteFlash(id) {
+  if(confirm("カードを削除する？")) {
+    data.flashcards=data.flashcards.filter(f=>f.id!==id);save();
+  }
+}
+function reveal(id) {
+  const el=document.getElementById("answer-"+id);
+  const btn=document.getElementById("reveal-"+id);
+  if(el.classList.contains("hidden")) {
+    el.classList.remove("hidden");btn.textContent="答えを隠す";
+  } else {
+    el.classList.add("hidden");btn.textContent="答えを見る";
+  }
+}
+
+function savePrediction() {
+  const subject=document.getElementById("predSubject").value;
+  const name=document.getElementById("predName").value.trim();
+  const range=document.getElementById("predRange").value.trim();
+  const memo=document.getElementById("predMemo").value.trim();
+  if(!name) return alert("テスト名を入力してね");
+  data.predictions.push({id:uid(),subject,name,range,memo,date:today()});
+  document.getElementById("predName").value="";
+  document.getElementById("predRange").value="";
+  document.getElementById("predMemo").value="";
+  save();
+}
+function deletePrediction(id) {
+  if(confirm("この予測情報を削除する？")) {
+    data.predictions=data.predictions.filter(p=>p.id!==id);save();
+  }
+}
+
+function addSlot() {
+  const day=document.getElementById("ttDay").value;
+  const period=document.getElementById("ttPeriod").value.trim();
+  const subject=document.getElementById("ttSubject").value;
+  if(!period) return alert("時間を入力してね");
+  data.timetable.push({id:uid(),day,period,subject});
+  document.getElementById("ttPeriod").value="";
+  save();
+}
+function deleteSlot(id) {
+  data.timetable=data.timetable.filter(s=>s.id!==id);save();
+}
+function exportData() {
+  const blob=new Blob([JSON.stringify(data,null,2)],{type:"application/json"});
+  const url=URL.createObjectURL(blob);
+  const a=document.createElement("a");
+  a.href=url;a.download="study-tracker-backup-"+today()+".json";
+  a.click();URL.revokeObjectURL(url);
+}
+function importData() {
+  const f=document.getElementById("restoreFile").files[0];
+  if(!f)return alert("バックアップファイルを選択してね");
+  const reader=new FileReader();
+  reader.onload=()=>{
+    try {
+      const restored=JSON.parse(reader.result);
+      if(!restored.subjects || !Array.isArray(restored.subjects))
+        throw Error("形式が違います");
+      if(!confirm("現在のデータにバックアップを上書きして復元する？"))return;
+      data={...defaultData,...restored};
+      save();alert("復元しました");
+    } catch(e) { alert("復元できませんでした。正しいバックアップファイルを選んでね。"); }
+  };
+  reader.readAsText(f);
+}
+
+/* TIMER */
+let timerRemaining=25*60;
+let timerInterval=null;
+function formatTime(n) {
+  return String(Math.floor(n/60)).padStart(2,"0")+":"+String(n%60).padStart(2,"0");
+}
+function updateTimerDisplay() {
+  document.getElementById("timerDisplay").textContent=formatTime(timerRemaining);
+}
+function resetTimer() {
+  pauseTimer();
+  const m=Math.min(240,Math.max(1,Number(document.getElementById("timerMinutes").value)||25));
+  timerRemaining=m*60;updateTimerDisplay();
+}
+function startTimer() {
+  if(timerInterval)return;
+  timerInterval=setInterval(()=>{
+    timerRemaining--;
+    updateTimerDisplay();
+    if(timerRemaining<=0) {
+      pauseTimer();
+      const subject=document.getElementById("timerSubject").value;
+      const mins=Math.max(1,Number(document.getElementById("timerMinutes").value)||25);
+      data.sessions.push({id:uid(),subject,minutes:mins,date:today()});
+      save();
+      alert("集中時間終了！お疲れさま。");
+      resetTimer();
+    }
+  },1000);
+}
+function pauseTimer() {
+  clearInterval(timerInterval);timerInterval=null;
+}
+updateTimerDisplay();
+
+/* RENDER */
+function render() {
+  ["taskSubject","gradeSubject","noteSubject","flashSubject",
+   "timerSubject","predSubject","ttSubject"].forEach(subjectOptions);
+
+  renderTasks();
+  renderGrades();
+  renderNotes();
+  renderFlash();
+  renderPredictions();
+  renderTimetable();
+  renderSubjects();
+  renderStats();
+}
+
+function renderTasks() {
+  const list=document.getElementById("taskList");
+  const home=document.getElementById("homeTasks");
+  const tasks=[...data.tasks].sort((a,b)=>(a.date||"").localeCompare(b.date||""));
+  if(!tasks.length) {
+    list.innerHTML='<div class="empty">まだタスクがないよ。上から追加してね。</div>';
+  } else {
+    list.innerHTML=tasks.map(t=>`
+      <div class="task ${t.done?"done":""}">
+        <div class="row">
+          <div>
+            <div class="taskname">${esc(t.name)}</div>
+            <span class="tag">${esc(t.subject)}</span>
+            <span class="muted">${esc(t.date||"日付未設定")} · ${t.duration}分</span>
+          </div>
+          <button class="btn small ${t.done?"secondary":""}" onclick="toggleTask('${t.id}')">${t.done?"取消":"完了"}</button>
+          <button class="btn danger small" onclick="deleteTask('${t.id}')">削除</button>
+        </div>
+      </div>`).join("");
+  }
+  const todayTasks=tasks.filter(t=>t.date===today());
+  home.innerHTML=todayTasks.length?todayTasks.map(t=>`
+    <div class="task ${t.done?"done":""}">
+      <div class="taskname">${esc(t.name)}</div>
+      <span class="tag">${esc(t.subject)}</span>
+      <span class="muted">${t.duration}分</span>
+    </div>`).join(""):'<div class="empty">今日のタスクはまだないよ。</div>';
+}
+
+function renderGrades() {
+  const summary=document.getElementById("gradeSummary");
+  const list=document.getElementById("gradeList");
+  if(!data.grades.length) {
+    summary.innerHTML='<div class="empty">成績を登録すると教科別に表示するよ。</div>';
+    list.innerHTML='<div class="empty">テスト履歴はまだないよ。</div>';return;
+  }
+  summary.innerHTML=data.subjects.map(s=>{
+    const gs=data.grades.filter(g=>g.subject===s);
+    if(!gs.length)return "";
+    const avg=gs.reduce((sum,g)=>sum+g.score/g.max*100,0)/gs.length;
+    return `<div class="record">
+      <b>${esc(s)}</b><div class="row"><div>${gs.length}件のテスト</div><div><b>${avg.toFixed(1)}%</b></div></div>
+      <div class="bar"><div style="width:${Math.min(100,avg)}%"></div></div></div>`;
+  }).join("")||'<div class="empty">成績データがありません</div>';
+
+  const sorted=[...data.grades].sort((a,b)=>(b.date||"").localeCompare(a.date||""));
+  list.innerHTML=sorted.map(g=>`
+    <div class="record">
+      <div class="row"><b>${esc(g.name)}</b><button class="btn danger small" onclick="deleteGrade('${g.id}')">削除</button></div>
+      <span class="tag">${esc(g.subject)}</span>
+      <b>${g.score} / ${g.max} (${(g.score/g.max*100).toFixed(1)}%)</b>
+      <div class="muted">${esc(g.date||"日付未設定")}</div>
+      ${g.memo?`<p class="smalltext">${esc(g.memo)}</p>`:""}
+    </div>`).join("");
+}
+
+function renderNotes() {
+  const el=document.getElementById("noteList");
+  el.innerHTML=data.notes.length?[...data.notes].reverse().map(n=>`
+    <div class="note">
+      <div class="row"><span class="tag">${esc(n.subject)}</span><span class="muted">${esc(n.date)}</span>
+      <button class="btn danger small" onclick="deleteNote('${n.id}')">削除</button></div>
+      <b>問題・間違い</b><p>${esc(n.question)}</p>
+      <b>正しい考え方</b><p>${esc(n.answer||"未登録")}</p>
+    </div>`).join(""):'<div class="empty">間違いノートはまだないよ。</div>';
+}
+
+function renderFlash() {
+  const el=document.getElementById("flashList");
+  el.innerHTML=data.flashcards.length?[...data.flashcards].reverse().map(f=>`
+    <div class="flash">
+      <span class="tag">${esc(f.subject)}</span>
+      <b>${esc(f.q)}</b>
+      <div id="answer-${f.id}" class="hidden" style="padding:10px;background:#fff8e8;border-radius:10px;margin-top:8px">${esc(f.a)}</div>
+      <div class="row" style="margin-top:9px">
+        <button class="btn secondary small" id="reveal-${f.id}" onclick="reveal('${f.id}')">答えを見る</button>
+        <button class="btn danger small" onclick="deleteFlash('${f.id}')">削除</button>
+      </div>
+    </div>`).join(""):'<div class="empty">暗記カードはまだないよ。</div>';
+}
+
+function renderPredictions() {
+  const el=document.getElementById("predList");
+  el.innerHTML=data.predictions.length?[...data.predictions].reverse().map(p=>`
+    <div class="record">
+      <div class="row"><b>${esc(p.name)}</b><button class="btn danger small" onclick="deletePrediction('${p.id}')">削除</button></div>
+      <span class="tag">${esc(p.subject)}</span>
+      <p><b>範囲</b><br>${esc(p.range||"未登録")}</p>
+      <p><b>出題傾向メモ</b><br>${esc(p.memo||"未登録")}</p>
+    </div>`).join(""):'<div class="empty">テスト情報はまだないよ。</div>';
+}
+
+function renderTimetable() {
+  const el=document.getElementById("slotList");
+  el.innerHTML=data.timetable.length?[...data.timetable].map(s=>`
+    <div class="slot">
+      <div class="row"><b>${esc(s.day)}・${esc(s.period)}</b>
+      <button class="btn danger small" onclick="deleteSlot('${s.id}')">削除</button></div>
+      <span class="tag">${esc(s.subject)}</span>
+    </div>`).join(""):'<div class="empty">時間割はまだないよ。</div>';
+}
+
+function renderSubjects() {
+  const el=document.getElementById("subjectList");
+  el.innerHTML=data.subjects.map(s=>`
+    <div class="subject">
+      <div class="row"><b>${esc(s)}</b>
+        <button class="btn secondary small" onclick="renameSubject('${esc(s).replace(/'/g,"\\'")}')">名前変更</button>
+        <button class="btn danger small" onclick="deleteSubject('${esc(s).replace(/'/g,"\\'")}')">削除</button>
+      </div>
+    </div>`).join("");
+}
+
+function renderStats() {
+  const todays=data.tasks.filter(t=>t.date===today());
+  const done=todays.filter(t=>t.done).length;
+  document.getElementById("taskStat").textContent=`${done}/${todays.length}`;
+  document.getElementById("subjectStat").textContent=data.subjects.length;
+  document.getElementById("reviewStat").textContent=data.notes.length;
+
+  const mins=data.sessions.filter(s=>s.date===today()).reduce((a,s)=>a+s.minutes,0);
+  document.getElementById("todayMinutes").textContent=mins+"分";
+  document.getElementById("todayBar").style.width=Math.min(100,mins/120*100)+"%";
+}
+
+render();
+</script>
+</body>
+</html>
